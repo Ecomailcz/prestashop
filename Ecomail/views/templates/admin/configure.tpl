@@ -1,4 +1,4 @@
-<img src="https://p3.zdassets.com/hc/settings_assets/941038/200151565/mPR2wxDHNMPFepG49HyrZg-ecomail-logo-black.png">
+<img src="https://www.ecomail.cz/images/logo-tiny-inverse.png">
 <div class="clear"></div>
 <fieldset style="padding: 25px;border: 2px solid #efefef; margin-bottom: 15px;">
     <div style="float: right; width: 340px; height: 205px; border: dashed 1px #666; padding: 8px; margin-left: 12px; margin-top:-15px;">
