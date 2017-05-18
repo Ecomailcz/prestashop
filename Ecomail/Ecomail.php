@@ -47,6 +47,11 @@
 
                 if( $this->getConfigurationValue( 'api_key' ) ) {
 
+                    $data = array();
+                    if(isset($params['newCustomer']->birthday)) {
+                        $data['birthday'] = $params['newCustomer']->birthday;
+                    }
+                    
                     $this->getAPI()
                          ->subscribeToList(
                          $this->getConfigurationValue( 'list_id' ),
