@@ -27,7 +27,7 @@
                     $this->processDuplicateProduct();
                 }
 
-                if( !Tools::getIsset( 'ipa' ) && !$this->errors ) {
+                if( !Tools::getIsset( 'ipa' ) && Tools::getIsset( 'add' ) && !$this->errors ) {
 
                     /**
                      * @var Ecomail $module

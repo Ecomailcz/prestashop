@@ -51,8 +51,15 @@ var EcomailFront = (function() {
       expires = "";
     }
 
-    var path = baseUri.replace( window.location.origin, '' ).replace( /\/$/, '' );
-    document.cookie = encodeURIComponent( name ) + "=" + encodeURIComponent( value ) + expires + "; path=" + path;
+    var origin = window.location.origin;
+    if( !origin ) {
+      origin = window.location.protocol + '//' + window.location.host;
+    }
+    var path = baseUri.replace( origin, '' ).replace( /\/$/, '' );
+    if( path ) {
+      document.cookie = encodeURIComponent( name ) + "=" + encodeURIComponent( value ) + expires + "; path=" + path;
+    }
+    document.cookie = encodeURIComponent( name ) + "=" + encodeURIComponent( value ) + expires + "; path=" + path + '/';
   }
 
   function readCookie( name ) {

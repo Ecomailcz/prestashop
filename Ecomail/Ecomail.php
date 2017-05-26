@@ -10,16 +10,17 @@
 
     class Ecomail extends ModuleBase {
 
+        protected $overridenModules = array( 'blocknewsletter' );
+
         public function __construct() {
             $this->name    = 'Ecomail';
-            $this->version = '1.1.0';
+            $this->version = '1.1.2';
             $this->author  = 'Ecomail.cz s.r.o.';
             if( version_compare(
                     _PS_VERSION_,
                     '1.5',
                     '>'
-            )
-            ) {
+            ) ) {
                 $this->tab = 'emailing';
             }
             else {
@@ -47,21 +48,35 @@
 
                 if( $this->getConfigurationValue( 'api_key' ) ) {
 
-                    $data = array();
-                    if(isset($params['newCustomer']->birthday)) {
-                        $data['birthday'] = $params['newCustomer']->birthday;
-                    }
-                    
                     $this->getAPI()
                          ->subscribeToList(
-                         $this->getConfigurationValue( 'list_id' ),
-                         array(
-                                 'email' => $params['_POST']['email'],
-                                 'name'  => $params['_POST']['customer_firstname'] . ' ' . $params['_POST']['customer_lastname']
-                         )
-                            );
+                                 $this->getConfigurationValue( 'list_id' ),
+                                 array(
+                                         'email' => $params['_POST']['email'],
+                                         'name'  => $params['_POST']['customer_firstname'] . ' ' . $params['_POST']['customer_lastname']
+                                 )
+                         );
 
                 }
+            }
+
+        }
+
+        public function hookActionCustomerNewsletterSubscribed( $params ) {
+
+            if( $this->getConfigurationValue( 'api_key' ) ) {
+
+                $customer = Customer::getCustomersByEmail( $params['email'] );
+                
+                $this->getAPI()
+                     ->subscribeToList(
+                             $this->getConfigurationValue( 'list_id' ),
+                             array(
+                                     'email' => $customer->email,
+                                     'name'  => $customer->firstname . ' ' . $customer->lastname
+                             )
+                     );
+
             }
 
         }
@@ -81,7 +96,7 @@
 
             if( $appId ) {
 
-                $this->context->controller->addJS( $this->_path . 'views/js/front.js' );
+                $this->context->controller->addJS( $this->_path . 'views/js/front.js?v=' . $this->version );
 
                 $html = <<<HTML
                 
@@ -102,10 +117,10 @@ HTML;
                         $html,
                         array(
                                 '{1}' => Tools::jsonEncode(
-                                              array(
-                                                      'appId' => $appId
-                                              )
+                                        array(
+                                                'appId' => $appId
                                         )
+                                )
                         )
                 );
 
@@ -121,11 +136,10 @@ HTML;
                         $html,
                         array(
                                 '{1}' => Tools::jsonEncode(
-                                              array(
-                                                      'cookieNameTrackStructEvent' => $this->getCookieNameTrackStructEvent(
-                                                              )
-                                              )
+                                        array(
+                                                'cookieNameTrackStructEvent' => $this->getCookieNameTrackStructEvent()
                                         )
+                                )
                         )
                 );
 
@@ -141,19 +155,19 @@ HTML;
             setcookie(
                     $this->getCookieNameTrackStructEvent(),
                     Tools::jsonEncode(
-                         array(
-                                 'category' => 'Product',
-                                 'action'   => 'AddToCart',
-                                 'tag'      => implode(
-                                         '|',
-                                         array(
-                                                 $id_product,
-                                                 $id_product_attribute
-                                         )
-                                 ),
-                                 'property' => 'quantity',
-                                 'value'    => $quantity
-                         )
+                            array(
+                                    'category' => 'Product',
+                                    'action'   => 'AddToCart',
+                                    'tag'      => implode(
+                                            '|',
+                                            array(
+                                                    $id_product,
+                                                    $id_product_attribute
+                                            )
+                                    ),
+                                    'property' => 'quantity',
+                                    'value'    => $quantity
+                            )
                     )
             );
 
@@ -168,7 +182,8 @@ HTML;
             return parent::install()
                    && $this->registerHook( 'actionCustomerAccountAdd' )
                    && $this->registerHook( 'actionValidateOrder' )
-                   && $this->registerHook( 'displayFooter' );
+                   && $this->registerHook( 'displayFooter' )
+                   && $this->registerHook( 'actionCustomerNewsletterSubscribed' );
         }
 
         public function uninstall() {
@@ -209,7 +224,7 @@ HTML;
             $output = '';
             if( !extension_loaded( 'curl' ) ) {
                 $output .= $this->displayError(
-                                $this->l( 'Musíte mít povolenu cURL extension abyste mohli používat tento modul.' )
+                        $this->l( 'Musíte mít povolenu cURL extension abyste mohli používat tento modul.' )
                 );
             }
             else {
@@ -217,7 +232,7 @@ HTML;
                  * If values have been submitted in the form, process.
                  */
                 if( ( (bool)Tools::isSubmit(
-                                 $this->getSubmitActionName()
+                                $this->getSubmitActionName()
                         ) ) == true
                 ) {
                     $ecomail_list_id = Tools::getValue( $this->getConfigurationName( 'list_id' ) );
@@ -231,8 +246,8 @@ HTML;
             }
 
             $this->context->smarty->assign(
-                                  'module_dir',
-                                  $this->_path
+                    'module_dir',
+                    $this->_path
             );
 
             $output .= $this->context->smarty->fetch( $this->local_path . 'views/templates/admin/configure.tpl' );
@@ -249,17 +264,17 @@ HTML;
                     $html,
                     array(
                             '{1}' => Tools::jsonEncode(
-                                          array(
-                                                  'formFieldAPIKey' => $this->getConfigurationName( 'api_key' ),
-                                                  'formFieldList'   => $this->getConfigurationName( 'list_id' ),
-                                                  'ajaxUrl'         => $this->context->link->getAdminLink(
-                                                                                           'AdminModules',
-                                                                                           false
-                                                                       ) . '&configure=' . $this->name . '&ajax=1&token=' . Tools::getAdminTokenLite(
-                                                                                                                                 'AdminModules'
-                                                                       )
-                                          )
+                                    array(
+                                            'formFieldAPIKey' => $this->getConfigurationName( 'api_key' ),
+                                            'formFieldList'   => $this->getConfigurationName( 'list_id' ),
+                                            'ajaxUrl'         => $this->context->link->getAdminLink(
+                                                            'AdminModules',
+                                                            false
+                                                    ) . '&configure=' . $this->name . '&ajax=1&token=' . Tools::getAdminTokenLite(
+                                                            'AdminModules'
+                                                    )
                                     )
+                            )
                     )
             );
 
@@ -301,8 +316,8 @@ HTML;
                                     'type'     => 'select',
                                     'label'    => $this->l( 'Vyberte list:' ),
                                     'desc'     => $this->l(
-                                                       'Vyberte list do kterého budou zapsáni noví zákazníci'
-                                            ),
+                                            'Vyberte list do kterého budou zapsáni noví zákazníci'
+                                    ),
                                     'name'     => $this->getConfigurationName( 'list_id' ),
                                     'required' => true,
                                     'options'  => array(
@@ -315,8 +330,8 @@ HTML;
                                     'type'  => 'text',
                                     'label' => $this->l( 'Vložte Vaše appId' ),
                                     'desc'  => $this->l(
-                                                    'Tento údaj slouží pro aktivaci funkce Trackovací kód'
-                                            ),
+                                            'Tento údaj slouží pro aktivaci funkce Trackovací kód'
+                                    ),
                                     'name'  => $this->getConfigurationName( 'app_id' ),
                                     'rows'  => 20
                             )

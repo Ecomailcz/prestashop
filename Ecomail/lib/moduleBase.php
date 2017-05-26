@@ -7,6 +7,7 @@
     abstract class ModuleBase extends Module {
 
         protected $config_form = false;
+        protected $overridenModules = array();
 
         public function hookDisplayBackOfficeHeader() {
 
@@ -26,17 +27,54 @@
 
             return parent::install()
                    && $this->registerHook( 'displayBackOfficeHeader' )
-                   && $this->maybeUpdateDatabase();
+                   && $this->maybeUpdateDatabase()
+                   && $this->installModuleOverrides();
         }
 
         public function uninstall() {
 
-            return parent::uninstall();
+            return parent::uninstall() && $this->uninstallModuleOverrides();
         }
 
         protected function maybeUpdateDatabase() {
 
             return true;
+        }
+
+        protected function installModuleOverrides() {
+
+            $result = true;
+            foreach( $this->overridenModules as $overridenModule ) {
+                $result &= mkdir(
+                                   _PS_ROOT_DIR_ . '/override/modules/' . $overridenModule,
+                                   0777,
+                                   true
+                           )
+                           && copy(
+                                   __DIR__ . '/../install/override/modules/' . $overridenModule . '.php',
+                                   _PS_ROOT_DIR_ . '/override/modules/' . $overridenModule . '/' . $overridenModule . '.php'
+                           )
+                           && ( Tools::generateIndex() || true );
+            }
+
+            return $result;
+
+        }
+
+        protected function uninstallModuleOverrides() {
+
+            $result = true;
+            foreach( $this->overridenModules as $overridenModule ) {
+                $result &= unlink(
+                                   _PS_ROOT_DIR_ . '/override/modules/' . $overridenModule . '/' . $overridenModule . '.php'
+                           )
+                           && rmdir(
+                                   _PS_ROOT_DIR_ . '/override/modules/' . $overridenModule
+                           )
+                           && ( Tools::generateIndex() || true );
+            }
+
+            return $result;
         }
 
         /**
@@ -50,16 +88,16 @@
             $helper->module                   = $this;
             $helper->default_form_language    = $this->context->language->id;
             $helper->allow_employee_form_lang = Configuration::get(
-                                                             'PS_BO_ALLOW_EMPLOYEE_FORM_LANG',
-                                                             0
+                    'PS_BO_ALLOW_EMPLOYEE_FORM_LANG',
+                    0
             );
 
             $helper->identifier    = $this->identifier;
             $helper->submit_action = $this->getSubmitActionName();
             $helper->currentIndex  = $this->context->link->getAdminLink(
-                                                         'AdminModules',
-                                                         false
-                                     ) . '&configure=' . $this->name . '&tab_module=' . $this->tab . '&module_name=' . $this->name;
+                            'AdminModules',
+                            false
+                    ) . '&configure=' . $this->name . '&tab_module=' . $this->tab . '&module_name=' . $this->name;
             $helper->token         = Tools::getAdminTokenLite( 'AdminModules' );
 
             $helper->tpl_vars = array(
@@ -83,8 +121,7 @@
                                     'title' => $this->l( 'Nastavení' ),
                                     'icon'  => 'icon-cogs',
                             ),
-                            'input'  => array(
-                            ),
+                            'input'  => array(),
                             'submit' => array(
                                     'title' => $this->l( 'Uložit' ),
                             ),
@@ -112,9 +149,10 @@
             $form_values = $this->getConfigFormValues();
 
             foreach( array_keys( $form_values ) as $key ) {
+                Configuration::deleteByName( $key );
                 Configuration::updateValue(
-                             $key,
-                             trim( Tools::getValue( $key ) )
+                        $key,
+                        trim( Tools::getValue( $key ) )
                 );
             }
 
@@ -137,13 +175,12 @@
 
         protected function getConfigurationValue( $key ) {
             return Configuration::get(
-                                $this->getConfigurationName( $key )
+                    $this->getConfigurationName( $key )
             );
         }
 
         protected function getConfigurationNames() {
-            return array(
-            );
+            return array();
         }
 
     }
